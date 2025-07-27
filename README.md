@@ -32,3 +32,4 @@ Play It Now!
 Experience the prompt-engineered magic for yourself:
 Play Pixel Pilot Live!
 
+https://jrvvgogh.github.io/pixel-pilot
