@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Pilot</title>
+    <!-- Tailwind CSS CDN for responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for a retro-like feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the game elements */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #222; /* Dark background for space theme */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling */
+            user-select: none; /* Prevent text selection on touch */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px; /* Max width for game area */
+            height: 100vh; /* Full viewport height on mobile */
+            max-height: 700px; /* Max height for game area */
+            background-color: #000; /* Deep space background */
+            border: 4px solid #0f0; /* Neon green border */
+            overflow: hidden;
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            display: flex; /* Use flex to center content */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Game Screen specific styles */
+        #game-screen {
+            display: none; /* Hidden by default, shown when game starts */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            /* Height adjusted to account for controls being higher */
+            height: calc(100% - 60px - 12px); /* 60px for controls + 12px offset */
+            background-image: radial-gradient(circle at bottom, #1a1a1a, #000); /* Subtle space gradient */
+        }
+
+        /* Player Ship (Emoji) */
+        #player-ship {
+            position: absolute;
+            font-size: 2.5rem; /* Size of the spaceship emoji */
+            /* Adjusted bottom position to be above controls */
+            bottom: calc(10px + 60px + 12px); /* Base + controls height + offset */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            will-change: transform; /* Optimize for animation */
+        }
+
+        .bullet {
+            position: absolute;
+            width: 8px;
+            height: 20px;
+            background-color: #0f0; /* Green laser */
+            border-radius: 2px;
+            z-index: 5;
+            will-change: transform;
+        }
+
+        .enemy {
+            position: absolute;
+            font-size: 2rem; /* Size of enemy emoji */
+            z-index: 5;
+            will-change: transform;
+        }
+
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            /* Pixel font applied */
+            font-family: 'Press Start 2P', cursive;
+            font-size: 2rem;
+            color: #0f0; /* Neon green score */
+            text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.7);
+            z-index: 20;
+        }
+
+        /* Movement Controls for Mobile */
+        #controls {
+            position: absolute;
+            bottom: 12px; /* Moved up by 12px (20% of 60px height) */
+            left: 0;
+            width: 100%;
+            height: 60px; /* Height of the controls area */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #111;
+            border-top: 2px solid #0f0;
+            z-index: 30;
+        }
+
+        .control-button {
+            background-color: #333;
+            color: #0f0;
+            padding: 0.8rem 1.5rem;
+            font-size: 1.5rem;
+            font-family: 'Press Start 2P', cursive;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0a0, 0 6px 10px rgba(0, 255, 0, 0.2);
+            transition: all 0.1s ease;
+            outline: none;
+            flex-grow: 1; /* Make buttons take equal space */
+            margin: 0 5px;
+            height: 80%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .control-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #0a0, 0 4px 8px rgba(0, 255, 0, 0.1);
+        }
+
+        /* Landing and Game Over Screens */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #0f0; /* Neon green text */
+            font-family: 'Press Start 2P', cursive;
+            z-index: 40;
+            border-radius: 1rem;
+        }
+
+        .overlay-screen h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 4px 4px 0px rgba(0, 0, 0, 0.8);
+        }
+
+        .overlay-screen p {
+            font-family: 'Inter', sans-serif; /* Use Inter for body text */
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            max-width: 80%;
+            line-height: 1.5;
+            color: #fff; /* White text for readability */
+        }
+
+        .overlay-button {
+            background-color: #0f0; /* Neon green button */
+            color: #000;
+            padding: 1rem 2.5rem;
+            font-size: 1.5rem;
+            font-family: 'Press Start 2P', cursive;
+            border: none;
+            border-radius: 0.75rem; /* Rounded button */
+            cursor: pointer;
+            box-shadow: 0 6px 0 #0a0, 0 8px 15px rgba(0, 255, 0, 0.4); /* Button shadow */
+            transition: all 0.1s ease;
+            outline: none;
+        }
+
+        .overlay-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #0a0, 0 5px 10px rgba(0, 255, 0, 0.3);
+        }
+
+        /* Get Ready Message */
+        #get-ready-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Press Start 2P', cursive;
+            font-size: 2rem;
+            color: #0f0;
+            text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.7);
+            z-index: 45;
+            display: none; /* Hidden by default */
+        }
+
+        /* High Score Display */
+        .score-display {
+            /* Pixel font applied */
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.2rem;
+            color: #0f0;
+            text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.7);
+            margin-top: 1rem;
+        }
+
+        /* Hide game elements when overlay is active */
+        .game-hidden #game-screen {
+            display: none;
+        }
+        .game-active #game-screen {
+            display: block;
+        }
+        .game-active #controls {
+            display: flex;
+        }
+        .game-hidden #controls {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container" class="game-hidden">
+        <!-- Landing Screen -->
+        <div id="landing-screen" class="overlay-screen">
+            <h1>Pixel Pilot</h1>
+            <p>Defend the galaxy! Move left/right to dodge aliens, tap/space to shoot.</p>
+            <button id="start-button" class="overlay-button">Start Mission</button>
+            <p id="landing-high-score" class="score-display">High Score: 0</p>
+        </div>
+
+        <!-- Game Over Screen (initially hidden) -->
+        <div id="game-over-screen" class="overlay-screen hidden">
+            <h1>Mission Failed!</h1>
+            <p id="final-score">Score: 0</p>
+            <p id="gameover-high-score" class="score-display">High Score: 0</p>
+            <button id="restart-button" class="overlay-button">Retry Mission</button>
+        </div>
+
+        <!-- Get Ready Message (initially hidden) -->
+        <div id="get-ready-message" class="hidden">GET READY!</div>
+
+        <!-- Game Screen (initially hidden) -->
+        <div id="game-screen">
+            <div id="score">0</div>
+            <!-- Player Ship (Emoji) -->
+            <div id="player-ship">🚀</div>
+            <!-- Bullets and Enemies will be dynamically added here by JavaScript -->
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="controls">
+            <button id="move-left-button" class="control-button">◀</button>
+            <button id="move-right-button" class="control-button">▶</button>
+        </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const gameContainer = document.getElementById('game-container');
+        const landingScreen = document.getElementById('landing-screen');
+        const startButton = document.getElementById('start-button');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const restartButton = document.getElementById('restart-button');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const gameoverHighScoreDisplay = document.getElementById('gameover-high-score');
+        const landingHighScoreDisplay = document.getElementById('landing-high-score');
+        const gameScreen = document.getElementById('game-screen');
+        const playerShip = document.getElementById('player-ship');
+        const scoreDisplay = document.getElementById('score');
+        const getReadyMessage = document.getElementById('get-ready-message');
+        const controls = document.getElementById('controls');
+        const moveLeftButton = document.getElementById('move-left-button');
+        const moveRightButton = document.getElementById('move-right-button');
+
+        // Game variables
+        let playerX = gameContainer.offsetWidth / 2; // Player X position
+        const playerSpeed = 5; // How fast the player moves
+        const playerWidth = 40; // Approximate width of player ship emoji
+        const playerHeight = 40; // Approximate height of player ship emoji
+
+        const bulletSpeed = 7;
+        const bulletWidth = 8;
+        const bulletHeight = 20;
+        let bullets = []; // Array to hold active bullets
+
+        let initialEnemySpeed = 1; // Initial enemy falling speed
+        let currentEnemySpeed = initialEnemySpeed; // This will change dynamically
+        const maxEnemySpeed = 5; // Maximum enemy falling speed
+        let initialEnemySpawnInterval = 800; // Initial enemy spawn rate
+        let currentEnemySpawnInterval = initialEnemySpawnInterval; // This will change dynamically
+        const enemyWidth = 35; // Approximate width of enemy emoji
+        const enemyHeight = 35; // Approximate height of enemy emoji
+        let enemies = []; // Array to hold active enemies
+
+        let score = 0;
+        let highScore = 0; // Session high score
+        let gameActive = false; // True when game is playing (after delay)
+        let animationFrameId; // For requestAnimationFrame
+        let enemySpawnIntervalId; // For setInterval for enemy spawning
+        let difficultyIncreaseSpawnIntervalId; // For increasing spawn difficulty
+        let difficultyIncreaseSpeedIntervalId; // New: For increasing enemy speed difficulty
+        let gameStartDelayTimeoutId; // For setTimeout for start delay
+
+        let moveLeftInterval = null; // For continuous left movement
+        let moveRightInterval = null; // For continuous right movement
+
+        // --- Game State Management ---
+
+        /**
+         * Initializes the game to its starting state.
+         * Resets all game variables and clears dynamic elements.
+         */
+        function initGame() {
+            // Clear any running game loops or intervals
+            cancelAnimationFrame(animationFrameId);
+            clearInterval(enemySpawnIntervalId);
+            clearInterval(difficultyIncreaseSpawnIntervalId);
+            clearInterval(difficultyIncreaseSpeedIntervalId); // Clear enemy speed interval
+            clearTimeout(gameStartDelayTimeoutId);
+            stopPlayerMovement(); // Ensure any continuous movement stops
+
+            // Reset game state variables
+            gameActive = false;
+            score = 0;
+            scoreDisplay.textContent = score;
+            currentEnemySpawnInterval = initialEnemySpawnInterval; // Reset spawn interval
+            currentEnemySpeed = initialEnemySpeed; // Reset enemy speed
+
+            // Reset player position
+            playerX = (gameContainer.offsetWidth / 2) - (playerWidth / 2); // Center player
+            playerShip.style.left = playerX + 'px';
+            playerShip.style.bottom = '10px'; // Ensure consistent bottom position relative to game screen
+
+            // Remove all existing bullets and enemies from the DOM
+            bullets.forEach(bullet => bullet.remove());
+            bullets = [];
+            enemies.forEach(enemy => enemy.remove());
+            enemies = [];
+
+            // Update high score display on landing page
+            landingHighScoreDisplay.textContent = `High Score: ${highScore}`;
+        }
+
+        /**
+         * Starts the game sequence, including the "Get Ready" delay.
+         */
+        function startNewGameSequence() {
+            initGame(); // Reset game state
+
+            // Hide all overlay screens
+            landingScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            getReadyMessage.classList.add('hidden');
+
+            // Show the game screen and controls
+            gameContainer.classList.remove('game-hidden');
+            gameContainer.classList.add('game-active');
+
+            // Show "Get Ready" message
+            getReadyMessage.classList.remove('hidden');
+
+            // Set a delay before the game truly starts
+            gameStartDelayTimeoutId = setTimeout(() => {
+                getReadyMessage.classList.add('hidden'); // Hide "Get Ready"
+                gameActive = true; // Activate game logic
+                gameLoop(); // Start the game loop
+                // Start enemy spawning with current interval
+                enemySpawnIntervalId = setInterval(createEnemy, currentEnemySpawnInterval);
+                // Start difficulty increase mechanisms
+                difficultyIncreaseSpawnIntervalId = setInterval(increaseSpawnDifficulty, 7000); // Every 7 seconds for spawn rate
+                difficultyIncreaseSpeedIntervalId = setInterval(increaseEnemySpeed, 11000); // Every 11 seconds for enemy speed
+            }, 1500); // 1.5 seconds delay
+        }
+
+        /**
+         * Ends the game, transitions to game over screen.
+         */
+        function endGame() {
+            if (!gameActive) return; // Prevent ending if already ended
+            gameActive = false; // Deactivate game logic
+
+            // Stop all game loops and timers
+            cancelAnimationFrame(animationFrameId);
+            clearInterval(enemySpawnIntervalId);
+            clearInterval(difficultyIncreaseSpawnIntervalId);
+            clearInterval(difficultyIncreaseSpeedIntervalId); // Clear enemy speed interval
+            clearTimeout(gameStartDelayTimeoutId);
+            stopPlayerMovement(); // Ensure any continuous movement stops
+
+            // Update high score if current score is higher
+            if (score > highScore) {
+                highScore = score;
+            }
+
+            // Update final score and show game over screen
+            finalScoreDisplay.textContent = `Score: ${score}`;
+            gameoverHighScoreDisplay.textContent = `High Score: ${highScore}`;
+            gameOverScreen.classList.remove('hidden');
+
+            // Hide the game screen and controls
+            gameContainer.classList.remove('game-active');
+            gameContainer.classList.add('game-hidden');
+        }
+
+        /**
+         * Increases the game difficulty by decreasing enemy spawn interval.
+         */
+        function increaseSpawnDifficulty() {
+            if (!gameActive) return;
+
+            // Decrease spawn interval by 15%
+            currentEnemySpawnInterval *= 0.85; // Decrease by 15%
+            // Ensure interval doesn't go below a minimum (e.g., 200ms for very fast spawn)
+            currentEnemySpawnInterval = Math.max(200, currentEnemySpawnInterval);
+
+            // Clear the old interval and start a new one with the updated speed
+            clearInterval(enemySpawnIntervalId);
+            enemySpawnIntervalId = setInterval(createEnemy, currentEnemySpawnInterval);
+            console.log("Spawn difficulty increased! New spawn interval:", currentEnemySpawnInterval); // For debugging
+        }
+
+        /**
+         * Increases the enemy falling speed.
+         */
+        function increaseEnemySpeed() {
+            if (!gameActive) return;
+
+            // Increase enemy speed by 25%
+            currentEnemySpeed *= 1.25; // Increase by 25%
+            // Ensure speed doesn't exceed a maximum
+            currentEnemySpeed = Math.min(maxEnemySpeed, currentEnemySpeed);
+
+            console.log("Enemy speed increased! New speed:", currentEnemySpeed); // For debugging
+        }
+
+        // --- Player Movement Logic ---
+
+        /**
+         * Moves the player ship left or right.
+         * @param {string} direction - 'left' or 'right'.
+         */
+        function movePlayer(direction) {
+            if (!gameActive) return;
+
+            if (direction === 'left') {
+                playerX -= playerSpeed;
+            } else if (direction === 'right') {
+                playerX += playerSpeed;
+            }
+
+            // Keep player within game bounds
+            playerX = Math.max(0, Math.min(playerX, gameContainer.offsetWidth - playerWidth));
+            playerShip.style.left = playerX + 'px';
+        }
+
+        /**
+         * Starts continuous player movement.
+         * @param {string} direction - 'left' or 'right'.
+         */
+        function startContinuousMovement(direction) {
+            if (!gameActive) return;
+            stopPlayerMovement(); // Stop any existing movement first
+
+            if (direction === 'left') {
+                moveLeftInterval = setInterval(() => movePlayer('left'), 1000 / 60); // Move at ~60 FPS
+            } else if (direction === 'right') {
+                moveRightInterval = setInterval(() => movePlayer('right'), 1000 / 60); // Move at ~60 FPS
+            }
+        }
+
+        /**
+         * Stops all continuous player movement.
+         */
+        function stopPlayerMovement() {
+            clearInterval(moveLeftInterval);
+            clearInterval(moveRightInterval);
+            moveLeftInterval = null;
+            moveRightInterval = null;
+        }
+
+        // --- Game Core Logic ---
+
+        /**
+         * Creates a new bullet and adds it to the game.
+         */
+        function createBullet() {
+            if (!gameActive) return;
+
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            // Position bullet from the center of the ship's top edge
+            bullet.style.left = (playerX + playerWidth / 2 - bulletWidth / 2) + 'px';
+            // Adjusted bullet starting position to account for new player ship bottom
+            bullet.style.bottom = (playerShip.offsetHeight + 12 + 60) + 'px'; // Player height + controls offset + controls height
+            gameScreen.appendChild(bullet);
+            bullets.push(bullet);
+        }
+
+        /**
+         * Creates a new enemy and adds it to the game.
+         */
+        function createEnemy() {
+            if (!gameActive) return;
+
+            const enemy = document.createElement('div');
+            enemy.classList.add('enemy');
+            enemy.textContent = '👾'; // Alien emoji
+            enemy.style.left = Math.random() * (gameContainer.offsetWidth - enemyWidth) + 'px';
+            enemy.style.top = '-50px'; // Start above screen
+            gameScreen.appendChild(enemy);
+            enemies.push(enemy);
+        }
+
+        /**
+         * The main game loop, updates game state every frame.
+         */
+        function gameLoop() {
+            if (!gameActive) return;
+
+            // Update bullet positions
+            bullets.forEach((bullet, index) => {
+                let bulletY = parseInt(bullet.style.bottom);
+                bulletY += bulletSpeed;
+                bullet.style.bottom = bulletY + 'px';
+
+                // Remove bullet if off-screen
+                if (bulletY > gameScreen.offsetHeight) {
+                    bullet.remove();
+                    bullets.splice(index, 1);
+                }
+            });
+
+            // Update enemy positions and check for player collision
+            enemies.forEach((enemy, enemyIndex) => {
+                let enemyY = parseInt(enemy.style.top);
+                // Use currentEnemySpeed for movement
+                enemyY += currentEnemySpeed;
+                enemy.style.top = enemyY + 'px';
+
+                // Remove enemy if off-screen (missed)
+                if (enemyY > gameScreen.offsetHeight) {
+                    enemy.remove();
+                    enemies.splice(enemyIndex, 1);
+                    // Optionally, penalize score for missed enemies or just let them pass
+                }
+
+                // Check for collision with player ship
+                const playerRect = playerShip.getBoundingClientRect();
+                const enemyRect = enemy.getBoundingClientRect();
+
+                // Simple AABB collision detection
+                if (
+                    playerRect.left < enemyRect.right &&
+                    playerRect.right > enemyRect.left &&
+                    playerRect.top < enemyRect.bottom &&
+                    playerRect.bottom > enemyRect.top
+                ) {
+                    endGame(); // Player hit by enemy
+                    return; // Exit early
+                }
+
+                // Check for bullet-enemy collisions
+                bullets.forEach((bullet, bulletIndex) => {
+                    const bulletRect = bullet.getBoundingClientRect();
+
+                    if (
+                        bulletRect.left < enemyRect.right &&
+                        bulletRect.right > enemyRect.left &&
+                        bulletRect.top < enemyRect.bottom &&
+                        bulletRect.bottom > enemyRect.top
+                    ) {
+                        // Collision detected: remove both bullet and enemy
+                        bullet.remove();
+                        bullets.splice(bulletIndex, 1);
+                        enemy.remove();
+                        enemies.splice(enemyIndex, 1);
+                        score += 10; // Increase score
+                        scoreDisplay.textContent = score;
+                        return; // Exit inner loop
+                    }
+                });
+            });
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Event Listeners ---
+
+        // Start game button on landing screen
+        startButton.addEventListener('click', startNewGameSequence);
+        startButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startNewGameSequence();
+        });
+
+        // Restart button on game over screen
+        restartButton.addEventListener('click', startNewGameSequence);
+        restartButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startNewGameSequence();
+        });
+
+        // Mobile Movement Controls (Press and Hold)
+        moveLeftButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startContinuousMovement('left');
+        });
+        moveLeftButton.addEventListener('touchend', stopPlayerMovement);
+        moveLeftButton.addEventListener('touchcancel', stopPlayerMovement); // In case touch is interrupted
+
+        moveRightButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startContinuousMovement('right');
+        });
+        moveRightButton.addEventListener('touchend', stopPlayerMovement);
+        moveRightButton.addEventListener('touchcancel', stopPlayerMovement); // In case touch is interrupted
+
+        // Shooting: Tap anywhere on game screen (excluding controls)
+        gameScreen.addEventListener('click', createBullet);
+        gameScreen.addEventListener('touchstart', (e) => {
+            // Only shoot if the touch is within the game screen, not on control buttons
+            // We'll rely on the controls' touchstart/touchend for movement, and gameScreen for shooting
+            // This ensures a simple tap on the main game area fires a bullet.
+            e.preventDefault(); // Prevent default browser behavior (like scrolling/zooming)
+            createBullet();
+        });
+
+
+        // Desktop Keyboard Controls (Press and Hold)
+        let keysPressed = {}; // To track currently pressed keys for continuous movement
+        document.addEventListener('keydown', (e) => {
+            if (gameActive) {
+                if (e.code === 'ArrowLeft' && !keysPressed['ArrowLeft']) {
+                    keysPressed['ArrowLeft'] = true;
+                    startContinuousMovement('left');
+                } else if (e.code === 'ArrowRight' && !keysPressed['ArrowRight']) {
+                    keysPressed['ArrowRight'] = true;
+                    startContinuousMovement('right');
+                } else if (e.code === 'Space') {
+                    createBullet();
+                    e.preventDefault(); // Prevent page scrolling
+                }
+            } else if (!landingScreen.classList.contains('hidden') || !gameOverScreen.classList.contains('hidden')) {
+                // If on landing or game over screen and Space is pressed, start/restart game
+                if (e.code === 'Space') {
+                    startNewGameSequence();
+                    e.preventDefault(); // Prevent page scrolling
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft') {
+                keysPressed['ArrowLeft'] = false;
+                if (!keysPressed['ArrowRight']) { // Only stop if right arrow isn't also pressed
+                    stopPlayerMovement();
+                }
+            } else if (e.code === 'ArrowRight') {
+                keysPressed['ArrowRight'] = false;
+                if (!keysPressed['ArrowLeft']) { // Only stop if left arrow isn't also pressed
+                    stopPlayerMovement();
+                }
+            }
+        });
+
+
+        // Initialize the game when the page loads
+        window.onload = () => {
+            initGame(); // Reset game state and update high score display
+            landingScreen.classList.remove('hidden'); // Ensure landing screen is visible on load
+        };
+
+        // Handle window resize to adjust player position relative to new container width
+        window.addEventListener('resize', () => {
+            if (!gameActive) {
+                playerX = (gameContainer.offsetWidth / 2) - (playerWidth / 2);
+                playerShip.style.left = playerX + 'px';
+            }
+        });
+    </script>
+</body>
+</html>
